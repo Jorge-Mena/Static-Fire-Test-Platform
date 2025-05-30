@@ -1,4 +1,6 @@
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\bin\Debug\SFCS.exe.config
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\bin\Debug\SFCS.exe.manifest
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\bin\Debug\SFCS.application
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\bin\Debug\SFCS.exe
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\bin\Debug\SFCS.pdb
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\bin\Debug\Newtonsoft.Json.dll
@@ -20,6 +22,8 @@ C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - 
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Debug\SFCS.Properties.Resources.resources
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Debug\SFCS.csproj.GenerateResource.cache
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Debug\SFCS.csproj.CoreCompileInputs.cache
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Debug\SFCS.exe.manifest
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Debug\SFCS.application
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Debug\SFCS.csproj.Up2Date
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Debug\SFCS.exe
 C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Debug\SFCS.pdb

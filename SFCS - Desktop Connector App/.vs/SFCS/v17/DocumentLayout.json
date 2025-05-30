@@ -3,8 +3,7 @@
   "WorkspaceRootPath": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{12F0F782-70EF-4B58-B6FC-25613E1F98A0}|SFCS\\SFCS.csproj|c:\\users\\jorge\\documents\\northspace\\satic fire\\static-fire-test-platform\\sfcs - desktop connector app\\sfcs\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{12F0F782-70EF-4B58-B6FC-25613E1F98A0}|SFCS\\SFCS.csproj|solutionrelative:sfcs\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{00000000-0000-0000-0000-000000000000}|\u003CSolution\u003E|SFCS||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
     },
     {
       "AbsoluteMoniker": "D:0:0:{12F0F782-70EF-4B58-B6FC-25613E1F98A0}|SFCS\\SFCS.csproj|C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\sfcs\\form1.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -13,6 +12,13 @@
     {
       "AbsoluteMoniker": "D:0:0:{12F0F782-70EF-4B58-B6FC-25613E1F98A0}|SFCS\\SFCS.csproj|C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\sfcs\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
       "RelativeMoniker": "D:0:0:{12F0F782-70EF-4B58-B6FC-25613E1F98A0}|SFCS\\SFCS.csproj|solutionrelative:sfcs\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{12F0F782-70EF-4B58-B6FC-25613E1F98A0}|SFCS\\SFCS.csproj|c:\\users\\jorge\\documents\\northspace\\satic fire\\static-fire-test-platform\\sfcs - desktop connector app\\sfcs\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{12F0F782-70EF-4B58-B6FC-25613E1F98A0}|SFCS\\SFCS.csproj|solutionrelative:sfcs\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{12F0F782-70EF-4B58-B6FC-25613E1F98A0}|SFCS\\SFCS.csproj|c:\\users\\jorge\\documents\\northspace\\satic fire\\static-fire-test-platform\\sfcs - desktop connector app\\sfcs\\||{B270807C-D8C6-49EB-8EBE-8E8D566637A1}|cc4014f5-b18d-439c-9352-f99d984cca85"
     }
   ],
   "DocumentGroupContainers": [
@@ -22,20 +28,32 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 3,
               "Title": "Form1.cs",
               "DocumentMoniker": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs",
               "RelativeDocumentMoniker": "SFCS\\Form1.cs",
               "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs",
               "RelativeToolTip": "SFCS\\Form1.cs",
-              "ViewState": "AgIAAF0AAAAAAAAAAAAcwGkBAAAJAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAOAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-05-29T01:49:22.255Z",
               "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "SFCS",
+              "DocumentMoniker": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\SFCS.csproj",
+              "RelativeDocumentMoniker": "SFCS\\SFCS.csproj",
+              "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\SFCS.csproj",
+              "RelativeToolTip": "SFCS\\SFCS.csproj",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-05-30T11:31:04.64Z",
               "EditorCaption": ""
             },
             {
@@ -52,7 +70,8 @@
               "RelativeToolTip": "SFCS\\Form1.Designer.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-05-29T01:47:12.372Z"
+              "WhenOpened": "2025-05-29T01:47:12.372Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -63,7 +82,8 @@
               "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs [Design]",
               "RelativeToolTip": "SFCS\\Form1.cs [Design]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-05-29T01:47:00.865Z"
+              "WhenOpened": "2025-05-29T01:47:00.865Z",
+              "EditorCaption": " [Design]"
             }
           ]
         }

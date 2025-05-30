@@ -1,0 +1,22 @@
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS v3.1\SFCS.exe.config
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS v3.1\SFCS.exe.manifest
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS v3.1\SFCS.application
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS v3.1\SFCS.exe
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS v3.1\SFCS.pdb
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\Build\SFCS.exe.config
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\Build\SFCS.exe.manifest
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\Build\SFCS.application
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\Build\SFCS.exe
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\Build\SFCS.pdb
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.csproj.AssemblyReference.cache
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.csproj.SuggestedBindingRedirects.cache
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.exe.config
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.MainWindow.resources
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.Properties.Resources.resources
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.csproj.GenerateResource.cache
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.csproj.CoreCompileInputs.cache
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.exe.manifest
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.application
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.csproj.Up2Date
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.exe
+C:\Users\jorge\Documents\NorthSpace\Satic Fire\Static-Fire-Test-Platform\SFCS - Desktop Connector App\SFCS\obj\Release\SFCS.pdb
