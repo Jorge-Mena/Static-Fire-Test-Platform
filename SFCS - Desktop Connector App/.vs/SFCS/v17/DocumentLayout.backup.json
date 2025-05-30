@@ -30,9 +30,9 @@
               "Title": "Form1.cs",
               "DocumentMoniker": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs",
               "RelativeDocumentMoniker": "SFCS\\Form1.cs",
-              "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs",
-              "RelativeToolTip": "SFCS\\Form1.cs",
-              "ViewState": "AgIAAMUAAAAAAAAAAADgv38CAAAQAAAAAAAAAA==",
+              "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs*",
+              "RelativeToolTip": "SFCS\\Form1.cs*",
+              "ViewState": "AgIAANQDAAAAAAAAAAAjwNwDAABkAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-05-29T01:49:22.255Z",
               "IsPinned": true,
@@ -50,9 +50,10 @@
               "RelativeDocumentMoniker": "SFCS\\Form1.Designer.cs",
               "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.Designer.cs",
               "RelativeToolTip": "SFCS\\Form1.Designer.cs",
-              "ViewState": "AgIAAEkFAAAAAAAAAADwv1UFAABPAAAAAAAAAA==",
+              "ViewState": "AgIAAEsFAAAAAAAAAADwv1cFAABPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-05-29T01:47:12.372Z"
+              "WhenOpened": "2025-05-29T01:47:12.372Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -60,10 +61,11 @@
               "Title": "Form1.cs [Design]",
               "DocumentMoniker": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs",
               "RelativeDocumentMoniker": "SFCS\\Form1.cs",
-              "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs [Design]",
-              "RelativeToolTip": "SFCS\\Form1.cs [Design]",
+              "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs [Design]*",
+              "RelativeToolTip": "SFCS\\Form1.cs [Design]*",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-05-29T01:47:00.865Z"
+              "WhenOpened": "2025-05-29T01:47:00.865Z",
+              "EditorCaption": " [Design]"
             }
           ]
         }

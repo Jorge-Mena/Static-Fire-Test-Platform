@@ -525,6 +525,7 @@ namespace SFCS
             this.txtLogMetadata.Name = "txtLogMetadata";
             this.txtLogMetadata.Size = new System.Drawing.Size(486, 27);
             this.txtLogMetadata.TabIndex = 6;
+            this.txtLogMetadata.Visible = false;
             // 
             // mainTabs
             // 
@@ -735,6 +736,7 @@ namespace SFCS
             legend3.Name = "Legend1";
             this.chartTemp2.Legends.Add(legend3);
             this.chartTemp2.Location = new System.Drawing.Point(0, 20);
+            this.chartTemp2.Margin = new System.Windows.Forms.Padding(0);
             this.chartTemp2.Name = "chartTemp2";
             series3.ChartArea = "ChartArea1";
             series3.Legend = "Legend1";

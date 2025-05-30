@@ -19,7 +19,7 @@ namespace SFCS
         // Constants
         private const int TCP_RECEIVE_BUFFER_SIZE = 1024;
         private const int TCP_CONNECT_TIMEOUT = 3000;
-        private const int THREAD_JOIN_TIMEOUT = 500;
+        private const double THREAD_JOIN_TIMEOUT = 500.00;
         private const int MAX_DATA_POINTS = 1000;
         private const int MAX_BUFFER_SIZE = 65536;
         private const string CONFIG_FILE = "config.cfg";
@@ -27,8 +27,8 @@ namespace SFCS
 
         private CancellationTokenSource tcpCancelToken;
         private int reconnectAttempts = 0;
-        private const int MAX_RECONNECT_ATTEMPTS = 10;
-        private const int RECONNECT_DELAY_MS = 2000;
+        private const int MAX_RECONNECT_ATTEMPTS = 40;
+        private const int RECONNECT_DELAY_MS = 500;
         private volatile bool wantConnected = false;
 
         // Application state
@@ -348,56 +348,34 @@ namespace SFCS
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(data)) return;
+                if (string.IsNullOrWhiteSpace(data))
+                    return;
 
-                string[] parts = data.Split(new[] { ';', ';' }, StringSplitOptions.RemoveEmptyEntries);
-                double temp1 = lastTemp1;
-                double temp2 = lastTemp2;
-                double mass = lastMass;
+                // Try splitting by semicolon, then fallback to comma
+                string[] parts = data.Split(';');
+                if (parts.Length < 4)
+                    parts = data.Split(',');
+
+                // We want at least 4 values: ignore the first, then parse the next three
+                if (parts.Length < 4)
+                    return;
+
+                double temp1, temp2, mass;
+
+                // Strict: Only process if all three values parse to valid doubles
+                bool ok1 = double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out temp1);
+                bool ok2 = double.TryParse(parts[2].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out temp2);
+                bool ok3 = double.TryParse(parts[3].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out mass);
+
+                if (!ok1 && !ok2 && !ok3)
+                    return; // No valid data, skip
+
+                // Only update with new values if they parsed successfully; else, keep previous
+                if (!ok1) temp1 = lastTemp1; else lastTemp1 = temp1;
+                if (!ok2) temp2 = lastTemp2; else lastTemp2 = temp2;
+                if (!ok3) mass = lastMass; else lastMass = mass;
+
                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-
-                foreach (string part in parts)
-                {
-                    string[] keyValue = part.Split(':');
-                    if (keyValue.Length != 2) continue;
-
-                    string key = keyValue[0].Trim().ToUpper();
-                    string value = keyValue[1].Trim();
-
-                    try
-                    {
-                        switch (key)
-                        {
-                            case "T1":
-                                if (double.TryParse(value, out double t1))
-                                {
-                                    temp1 = t1;
-                                    lastTemp1 = temp1;
-                                }
-                                break;
-                            case "T2":
-                                if (double.TryParse(value, out double t2))
-                                {
-                                    temp2 = t2;
-                                    lastTemp2 = temp2;
-                                }
-                                break;
-                            case "M":
-                                if (double.TryParse(value, out double m))
-                                {
-                                    mass = m;
-                                    lastMass = mass;
-                                }
-                                break;
-                        }
-                    }
-                    catch (FormatException)
-                    {
-                        WriteMessage($"Failed to parse value '{value}' for key '{key}'",
-                            MessageTarget.ServerMonitor, true, false, false);
-                    }
-                }
-
                 UpdateDataTable(timestamp, temp1, temp2, mass);
                 UpdateCharts(temp1, temp2, mass);
 
@@ -409,8 +387,7 @@ namespace SFCS
             }
             catch (Exception ex)
             {
-                WriteMessage($"Data processing error: {ex.Message}",
-                    MessageTarget.ServerMonitor, true, false, false);
+                WriteMessage($"Data processing error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
             }
         }
 
@@ -532,15 +509,15 @@ namespace SFCS
 
             if (message.Trim().Equals(txtPortCmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                serialPort.WriteLine(wifiTCP.Port);
+                serialPort.WriteLine(txtTcpPort.Text);
             }
             else if (message.Trim().Equals(txtSSIDcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                serialPort.WriteLine(wifiTCP.Ssid);
+                serialPort.WriteLine(txtSSID.Text);
             }
             else if (message.Trim().Equals(txtPSWcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                serialPort.WriteLine(wifiTCP.Password);
+                serialPort.WriteLine(txtPassword.Text);
             }
             else if (message.Trim().StartsWith("IP", StringComparison.OrdinalIgnoreCase))
             {
@@ -684,6 +661,8 @@ namespace SFCS
                     UpdateConnectionStatus(true);
                     WriteMessage($"Connected to {txtIPAddress.Text}:{txtTcpPort.Text}",
                         MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                    WriteMessage($"Connected to {txtIPAddress.Text}:{txtTcpPort.Text}",
+                        MessageTarget.ProgramMessages, true, false, false);
 
                     StartReceiveLoop(tcpCancelToken.Token);
                     break;
@@ -694,10 +673,12 @@ namespace SFCS
                     reconnectAttempts++;
                     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS)
                     {
-                        WriteMessage($"Auto-reconnect failed after {reconnectAttempts} tries.", MessageTarget.ServerMonitor, true, false, false);
+                        WriteMessage($"Auto-reconnect failed after {reconnectAttempts} tries.", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                        WriteMessage($"Auto-reconnect failed after {reconnectAttempts} tries.", MessageTarget.ProgramMessages, true, false, false);
                         break;
                     }
-                    WriteMessage($"TCP connect failed: {ex?.Message ?? "Unknown"}. Retrying in {RECONNECT_DELAY_MS / 1000}s...", MessageTarget.ServerMonitor, true, false, false);
+                    WriteMessage($"TCP connect failed: {ex?.Message ?? "Unknown"}. Retrying in {RECONNECT_DELAY_MS / 1000.0}s...", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                    WriteMessage($"TCP connect failed: {ex?.Message ?? "Unknown"}. Retrying in {RECONNECT_DELAY_MS / 1000.0}s...", MessageTarget.ProgramMessages, true, false, false);
                     await Task.Delay(RECONNECT_DELAY_MS);
                 }
             }
@@ -739,9 +720,6 @@ namespace SFCS
             UpdateConnectionStatus(false);
         }
 
-        /// <summary>
-        /// Starts the receive loop in a background thread. Handles connection loss and triggers reconnect.
-        /// </summary>
         private void StartReceiveLoop(CancellationToken cancelToken)
         {
             Task.Run(async () =>
@@ -775,13 +753,15 @@ namespace SFCS
                 catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
-                    WriteMessage($"TCP receive error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
+                    WriteMessage($"TCP receive error: {ex.Message}", MessageTarget.ProgramMessages, true, false, false);
+                    WriteMessage($"TCP receive error: {ex.Message}", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
                     lock (connectionLock)
                     {
                         isConnected = false;
                     }
                     UpdateConnectionStatus(false);
-                    WriteMessage("Connection lost, attempting auto-reconnect...", MessageTarget.ServerMonitor, true, false, false);
+                    WriteMessage("Connection lost, attempting auto-reconnect...", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                    WriteMessage("Connection lost, attempting auto-reconnect...", MessageTarget.ProgramMessages, true, false, false);
                     await ConnectOrReconnect();
                 }
             }, cancelToken);
@@ -1004,9 +984,9 @@ namespace SFCS
                         if (saveFileDialog.ShowDialog() == DialogResult.OK)
                         {
                             StringBuilder csvContent = new StringBuilder();
-                            csvContent.AppendLine("Timestamp,Temperature1,Temperature2,Mass");
+                            csvContent.AppendLine("Timestamp;Temperature1;Temperature2;Mass");
                             foreach (DataRow row in liveDataTable.Rows)
-                                csvContent.AppendLine($"{row["Time"]},{row["Temp1"]},{row["Temp2"]},{row["Mass"]}");
+                                csvContent.AppendLine($"{row["Time"]};{row["Temp1"]};{row["Temp2"]};{row["Mass"]}");
                             File.WriteAllText(saveFileDialog.FileName, csvContent.ToString());
                         }
                         break;
