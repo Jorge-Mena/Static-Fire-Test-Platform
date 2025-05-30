@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Data;
 using System.Drawing;
 using System.IO;
@@ -15,16 +16,18 @@ namespace SFCS
 {
     public partial class MainWindow : Form
     {
+        // Constants
         private const int TCP_RECEIVE_BUFFER_SIZE = 1024;
-        private const int TCP_CONNECT_TIMEOUT = 3000; // 3 seconds
-        private const int THREAD_JOIN_TIMEOUT = 500; // 500ms
+        private const int TCP_CONNECT_TIMEOUT = 3000;
+        private const int THREAD_JOIN_TIMEOUT = 500;
         private const int MAX_DATA_POINTS = 1000;
-        private const int MAX_BUFFER_SIZE = 65536; // 64KB
+        private const int MAX_BUFFER_SIZE = 65536;
         private const string CONFIG_FILE = "config.cfg";
         private const string LOG_FILE_PREFIX = "log_";
 
         // Application state
-        private bool isFullscreen = false;
+        private bool isFullscreen = true;
+        private bool alreadyConnected = false;
         private bool isConnected = false;
         private bool isRecording = false;
         private bool isSerialConnected = false;
@@ -33,6 +36,7 @@ namespace SFCS
         private DateTime recordingStartTime;
         private string currentLogFile = "";
         private readonly object dataLock = new object();
+        private readonly object connectionLock = new object();
 
         // Communication objects
         private SerialPort serialPort;
@@ -42,7 +46,6 @@ namespace SFCS
 
         // Data structures
         private DataTable liveDataTable = new DataTable();
-        private readonly object connectionLock = new object();
 
         // Graph data
         private Series temp1Series;
@@ -60,46 +63,16 @@ namespace SFCS
             InitializeCharts();
             RefreshAvailablePorts();
             LoadConfig();
-            toggleFullscreen(isFullscreen);
+            ToggleFullscreen(isFullscreen);
 
-            // Set default baud rate
-            cbBaudRate.SelectedItem = "115200";
+            if (cbBaudRate.Items.Contains("115200"))
+                cbBaudRate.SelectedItem = "115200";
 
-            // Initialize UI elements
             lblRecordingStatus.Text = "Not recording";
             lblRecordingTime.Text = "00:00:00";
-
-            // Wire up event handlers
-            btnConnectWiFi.Click += btnConnectWiFi_Click;
-            btnSendTCP.Click += btnSendTCP_Click;
-            btnStart.Click += btnStart_Click;
-            btnStop.Click += btnStop_Click;
-            btnRecord.Click += btnRecord_Click;
-            saveAsToolStripMenuItem.Click += saveAsToolStripMenuItem_Click;
-            exportAsCSVToolStripMenuItem.Click += exportAsCSVToolStripMenuItem_Click;
-            exportTXTToolStripMenuItem.Click += exportTXTToolStripMenuItem_Click;
-            exportRawToolStripMenuItem.Click += exportRawToolStripMenuItem_Click;
-            exportConfigToolStripMenuItem.Click += exportConfigToolStripMenuItem_Click;
-            importConfigToolStripMenuItem.Click += importConfigToolStripMenuItem_Click;
-            showConfigToolStripMenuItem.Click += showConfigToolStripMenuItem_Click;
-            clearDataToolStripMenuItem.Click += clearDataToolStripMe_Click;
-            clearSerialTerminalToolStripMenuItem.Click += btnClearSerial_Click;
-            clearTCPTerminalToolStripMenuItem.Click += btnClearServer_Click;
-            btnConnectSerial.Click += btnConnectSerial_Click;
-            btnSendSerial.Click += btnSendSerial_Click;
-            toolStripButtonR.Click += toolStripButtonR_Click;
-            clearAllTerminalsToolStripMenuItem.Click += clearAllTerminalsToolStripMenuItem_Click;
-            Quit.Click += Quit_Click;
-            cbViewPassword.CheckedChanged += cbViewPassword_CheckedChanged;
-            tsbFullscren.Click += tsbFullscren_Click;
-            cbAutoSendWifi.CheckedChanged += cbAutoSendWifi_CheckedChanged;
-
-            // Start timer for recording time updates
-            recordingTimer.Interval = 1000;
-            recordingTimer.Tick += RecordingTimer_Tick;
-            recordingTimer.Start();
         }
 
+        #region Data Structures
         public struct WifiConfig
         {
             public string Port;
@@ -120,14 +93,13 @@ namespace SFCS
         public enum MessageTarget
         {
             SerialMonitor,
-            SerialLog,
             ServerMonitor,
-            ServerLog,
+            ProgramMessages,
             LogFile
         }
+        #endregion
 
         #region Initialization Methods
-
         private void InitializeSerialPort()
         {
             serialPort = new SerialPort
@@ -154,7 +126,6 @@ namespace SFCS
 
         private void InitializeCharts()
         {
-            // Setup Temp1 Chart
             chartTemp1.Series.Clear();
             temp1Series = new Series("Temperature 1")
             {
@@ -165,9 +136,7 @@ namespace SFCS
             chartTemp1.Series.Add(temp1Series);
             chartTemp1.ChartAreas[0].AxisY.Title = "°C";
             chartTemp1.ChartAreas[0].AxisX.Title = "Time";
-            chartTemp1.ChartAreas[0].AxisX.IntervalAutoMode = IntervalAutoMode.VariableCount;
 
-            // Setup Temp2 Chart
             chartTemp2.Series.Clear();
             temp2Series = new Series("Temperature 2")
             {
@@ -178,9 +147,7 @@ namespace SFCS
             chartTemp2.Series.Add(temp2Series);
             chartTemp2.ChartAreas[0].AxisY.Title = "°C";
             chartTemp2.ChartAreas[0].AxisX.Title = "Time";
-            chartTemp2.ChartAreas[0].AxisX.IntervalAutoMode = IntervalAutoMode.VariableCount;
 
-            // Setup Mass Chart
             chartMass.Series.Clear();
             massSeries = new Series("Mass")
             {
@@ -191,49 +158,6 @@ namespace SFCS
             chartMass.Series.Add(massSeries);
             chartMass.ChartAreas[0].AxisY.Title = "kg";
             chartMass.ChartAreas[0].AxisX.Title = "Time";
-            chartMass.ChartAreas[0].AxisX.IntervalAutoMode = IntervalAutoMode.VariableCount;
-        }
-
-        private void Auto_Connect(string message)
-        {
-            WifiConfig wifiTCP = new WifiConfig
-            {
-                Port = txtTcpPort.Text,
-                Ssid = txtSSID.Text,
-                Password = txtPassword.Text,
-                PortCommand = txtPortCmd.Text,
-                SsidCommand = txtSSIDcmd.Text,
-                PasswordCommand = txtPSWcmd.Text
-            };
-
-            if (cbAutoSendWifi.Checked)
-            {
-                if (message.Trim().Equals(txtPortCmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
-                {
-                    serialPort.WriteLine(wifiTCP.Port);
-                }
-                else if (message.Trim().Equals(txtSSIDcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
-                {
-                    serialPort.WriteLine(wifiTCP.Ssid);
-                }
-                else if (message.Trim().Equals(txtPSWcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
-                {
-                    serialPort.WriteLine(wifiTCP.Password);
-                }
-            }
-
-            if (message.Trim().StartsWith("IP", StringComparison.OrdinalIgnoreCase))
-            {
-                wifiTCP.IpAddress = message.Remove(0, 3);
-                if (InvokeRequired)
-                {
-                    Invoke(new Action(() => txtIPAddress.Text = wifiTCP.IpAddress));
-                }
-                else
-                {
-                    txtIPAddress.Text = wifiTCP.IpAddress;
-                }
-            }
         }
 
         private void RefreshAvailablePorts()
@@ -242,50 +166,6 @@ namespace SFCS
             string[] ports = SerialPort.GetPortNames();
             cbPorts.Items.AddRange(ports);
             if (ports.Length > 0) cbPorts.SelectedIndex = 0;
-        }
-
-        private void clearDataToolStripMe_Click(object sender, EventArgs e)
-        {
-            ClearAllData();
-        }
-
-        private void btnClearSerial_Click(object sender, EventArgs e)
-        {
-            rtbMonitorSerial.Clear();
-        }
-
-        private void btnClearServer_Click(object sender, EventArgs e)
-        {
-            rtbMonitorServer.Clear();
-        }
-
-        private void RecordingTimer_Tick(object sender, EventArgs e)
-        {
-            if (isRecording)
-            {
-                TimeSpan duration = DateTime.Now - recordingStartTime;
-                lblRecordingTime.Text = duration.ToString(@"hh\:mm\:ss");
-            }
-            else
-            {
-                lblRecordingTime.Text = "00:00:00";
-            }
-        }
-
-        #endregion
-
-        #region UI Methods
-
-        private void UpdateUIConnectingState()
-        {
-            if (InvokeRequired)
-            {
-                Invoke(new Action(UpdateUIConnectingState));
-                return;
-            }
-
-            btnConnectWiFi.Enabled = false;
-            btnConnectWiFi.Text = "Connecting...";
         }
 
         private void ClearAllData()
@@ -299,10 +179,21 @@ namespace SFCS
             }
         }
 
+        private void clearAllTerminalsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Clear the content of all terminals
+            rtbMonitorSerial.Clear();
+            rtbMonitorServer.Clear();
+            programMessages.Clear();
+        }
+
+        #endregion
+
+        #region UI Methods
         private void WriteMessage(string content, MessageTarget target, bool includeTime, bool includeDirection, bool isIncoming)
         {
-            string timestamp = includeTime ? $"[{DateTime.Now:HH:mm:ss:FFFF}] " : "";
-            string direction = includeDirection ? isIncoming ? "» " : "« " : "";
+            string timestamp = includeTime ? $"[{DateTime.Now:HH:mm:ss.fff}] " : "";
+            string direction = includeDirection ? (isIncoming ? "» " : "« ") : "";
             string fullMessage = $"{timestamp}{direction}{content}";
 
             if (InvokeRequired)
@@ -321,13 +212,9 @@ namespace SFCS
                     rtbMonitorServer.AppendText(fullMessage + Environment.NewLine);
                     rtbMonitorServer.ScrollToCaret();
                     break;
-                case MessageTarget.SerialLog:
-                    rtbLogSerial.AppendText(fullMessage + Environment.NewLine);
-                    rtbLogSerial.ScrollToCaret();
-                    break;
-                case MessageTarget.ServerLog:
-                    rtbLogServer.AppendText(fullMessage + Environment.NewLine);
-                    rtbLogServer.ScrollToCaret();
+                case MessageTarget.ProgramMessages:
+                    programMessages.AppendText(fullMessage + Environment.NewLine);
+                    programMessages.ScrollToCaret();
                     break;
                 case MessageTarget.LogFile:
                     if (isRecording && !string.IsNullOrEmpty(currentLogFile))
@@ -338,31 +225,70 @@ namespace SFCS
                         }
                         catch (Exception ex)
                         {
-                            WriteMessage($"Error writing to log file: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
+                            WriteMessage($"Error writing to log file: {ex.Message}", MessageTarget.ProgramMessages, true, false, false);
                         }
                     }
                     break;
             }
         }
 
-        private void toggleFullscreen(bool fullscreen)
+        private void ToggleFullscreen(bool fullscreen)
         {
-            if (fullscreen)
+            if (InvokeRequired)
+            {
+                Invoke(new Action(() => ToggleFullscreen(fullscreen)));
+                return;
+            }
+
+            if (!fullscreen)
+            {
+                FormBorderStyle = FormBorderStyle.Sizable;
+                WindowState = FormWindowState.Normal;
+                StartPosition = FormStartPosition.WindowsDefaultLocation;
+                Quit.Visible = false;
+                toolStripSeparator4.Visible = false;
+            }
+            else
             {
                 FormBorderStyle = FormBorderStyle.None;
                 WindowState = FormWindowState.Maximized;
+                StartPosition = FormStartPosition.CenterScreen;
                 ShowInTaskbar = true;
                 Quit.Visible = true;
                 toolStripSeparator4.Visible = true;
             }
-            else
-            {
-                FormBorderStyle = FormBorderStyle.Sizable;
-                WindowState = FormWindowState.Normal;
-                Quit.Visible = false;
-                toolStripSeparator4.Visible = false;
-            }
             isFullscreen = fullscreen;
+        }
+
+        private void SafeClose()
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(SafeClose));
+                return;
+            }
+
+            if (isRecording)
+            {
+                if (MessageBox.Show("Are you sure you want to stop recording?", "Stop recording?",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.No)
+                {
+                    return;
+                }
+                StopRecording();
+            }
+
+            try
+            {
+                if (isConnected) Disconnect();
+                if (isSerialConnected) serialPort.Close();
+                SaveConfig();
+                Close();
+            }
+            catch (Exception ex)
+            {
+                WriteMessage($"Error during close: {ex.Message}", MessageTarget.ProgramMessages, true, false, false);
+            }
         }
 
         private void UpdateConnectionStatus(bool connected)
@@ -377,6 +303,8 @@ namespace SFCS
             btnConnectWiFi.Text = connected ? "Disconnect" : "Connect";
             txtIPAddress.Enabled = !connected;
             txtTcpPort.Enabled = !connected;
+            lblConnectionStatus.Text = connected ? "Connected" : "Disconnected";
+            lblConnectionStatus.ForeColor = connected ? Color.Green : Color.Red;
         }
 
         private void UpdateSerialConnectionStatus(bool connected)
@@ -393,21 +321,31 @@ namespace SFCS
             cbBaudRate.Enabled = !connected;
         }
 
+        private void UpdateRecordingTimer()
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(UpdateRecordingTimer));
+                return;
+            }
+
+            if (isRecording)
+            {
+                TimeSpan duration = DateTime.Now - recordingStartTime;
+                lblRecordingTime.Text = duration.ToString(@"hh\:mm\:ss");
+            }
+        }
         #endregion
 
         #region Data Processing
-
         private void ProcessIncomingData(string data)
         {
             try
             {
-                // Skip empty or whitespace data
                 if (string.IsNullOrWhiteSpace(data)) return;
 
-                // Example data format: "T1:25.5,T2:26.7,M:12.3"
-                string[] parts = data.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
-
-                double temp1 = lastTemp1; // Keep last known values if not updated
+                string[] parts = data.Split(new[] { ';', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                double temp1 = lastTemp1;
                 double temp2 = lastTemp2;
                 double mass = lastMass;
                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
@@ -454,14 +392,12 @@ namespace SFCS
                     }
                 }
 
-                // Update UI with new data
                 UpdateDataTable(timestamp, temp1, temp2, mass);
                 UpdateCharts(temp1, temp2, mass);
 
-                // Write to log if recording
                 if (isRecording)
                 {
-                    string logEntry = $"{timestamp},{temp1},{temp2},{mass}";
+                    string logEntry = $"{timestamp};{temp1};{temp2};{mass}";
                     WriteMessage(logEntry, MessageTarget.LogFile, false, false, true);
                 }
             }
@@ -482,14 +418,15 @@ namespace SFCS
 
             lock (dataLock)
             {
-                // Limit the number of rows to prevent memory issues
                 if (liveDataTable.Rows.Count > MAX_DATA_POINTS)
                 {
                     liveDataTable.Rows.RemoveAt(0);
                 }
 
                 liveDataTable.Rows.Add(timestamp, temp1, temp2, mass);
-                dgvLiveData.FirstDisplayedScrollingRowIndex = dgvLiveData.RowCount - 1;
+
+                if (dgvLiveData.RowCount > 0)
+                    dgvLiveData.FirstDisplayedScrollingRowIndex = dgvLiveData.RowCount - 1;
             }
         }
 
@@ -503,44 +440,41 @@ namespace SFCS
 
             DateTime now = DateTime.Now;
 
-            // Update Temp1 chart
             if (temp1Series.Points.Count > MAX_DATA_POINTS)
-            {
                 temp1Series.Points.RemoveAt(0);
-            }
             temp1Series.Points.AddXY(now, temp1);
 
-            // Update Temp2 chart
             if (temp2Series.Points.Count > MAX_DATA_POINTS)
-            {
                 temp2Series.Points.RemoveAt(0);
-            }
             temp2Series.Points.AddXY(now, temp2);
 
-            // Update Mass chart
             if (massSeries.Points.Count > MAX_DATA_POINTS)
-            {
                 massSeries.Points.RemoveAt(0);
-            }
             massSeries.Points.AddXY(now, mass);
         }
-
         #endregion
 
         #region Serial Communication
-
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            string data = serialPort.ReadExisting();
-            _serialBuffer.Append(data);
-
-            ProcessBuffer(_serialBuffer, (line) =>
+            try
             {
-                WriteMessage(line, MessageTarget.SerialMonitor, cbTimecodeSerial.Checked, true, true);
-                WriteMessage(line, MessageTarget.SerialLog, false, false, true);
-                Auto_Connect(line);
-                ProcessIncomingData(line);
-            });
+                string data = serialPort.ReadExisting();
+                _serialBuffer.Append(data);
+
+                ProcessBuffer(_serialBuffer, (line) =>
+                {
+                    WriteMessage(line, MessageTarget.SerialMonitor,
+                        cbTimecodeSerial.Checked, true, true);
+                    Auto_Connect(line);
+                    ProcessIncomingData(line);
+                });
+            }
+            catch (Exception ex)
+            {
+                WriteMessage($"Serial read error: {ex.Message}",
+                    MessageTarget.SerialMonitor, true, false, false);
+            }
         }
 
         private void ProcessBuffer(StringBuilder buffer, Action<string> lineProcessor)
@@ -552,7 +486,7 @@ namespace SFCS
             {
                 buffer.Remove(0, buffer.Length - MAX_BUFFER_SIZE);
                 WriteMessage("Buffer overflow detected, truncated buffer",
-                            MessageTarget.SerialMonitor, true, false, false);
+                    MessageTarget.SerialMonitor, true, false, false);
             }
 
             if (lastNewLine >= 0)
@@ -561,6 +495,7 @@ namespace SFCS
                 buffer.Remove(0, lastNewLine + 1);
 
                 string[] lines = completeMessages.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
                 Invoke(new Action(() =>
                 {
                     foreach (string line in lines)
@@ -575,14 +510,43 @@ namespace SFCS
             }
         }
 
+        private void Auto_Connect(string message)
+        {
+            if (!cbAutoSendWifi.Checked) return;
+
+            WifiConfig wifiTCP = new WifiConfig
+            {
+                Port = txtTcpPort.Text,
+                Ssid = txtSSID.Text,
+                Password = txtPassword.Text,
+                PortCommand = txtPortCmd.Text,
+                SsidCommand = txtSSIDcmd.Text,
+                PasswordCommand = txtPSWcmd.Text
+            };
+
+            if (message.Trim().Equals(txtPortCmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                serialPort.WriteLine(wifiTCP.Port);
+            }
+            else if (message.Trim().Equals(txtSSIDcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                serialPort.WriteLine(wifiTCP.Ssid);
+            }
+            else if (message.Trim().Equals(txtPSWcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                serialPort.WriteLine(wifiTCP.Password);
+            }
+            else if (message.Trim().StartsWith("IP", StringComparison.OrdinalIgnoreCase))
+            {
+                string ip = message.Substring(2).Trim();
+                txtIPAddress.Text = ip;
+            }
+        }
+
         private void SerialPort_ErrorReceived(object sender, SerialErrorReceivedEventArgs e)
         {
-            if (InvokeRequired)
-            {
-                Invoke(new Action(() => SerialPort_ErrorReceived(sender, e)));
-                return;
-            }
-            MessageBox.Show($"Serial port error: {e.EventType}", "Error");
+            WriteMessage($"Serial port error: {e.EventType}",
+                MessageTarget.SerialMonitor, true, false, false);
         }
 
         private void btnConnectSerial_Click(object sender, EventArgs e)
@@ -593,7 +557,7 @@ namespace SFCS
             {
                 try
                 {
-                    if (cbPorts.SelectedItem == null || cbBaudRate.Text == null)
+                    if (cbPorts.SelectedItem == null || string.IsNullOrWhiteSpace(cbBaudRate.Text))
                     {
                         MessageBox.Show("Please select both port and baud rate.");
                         return;
@@ -602,24 +566,14 @@ namespace SFCS
                     serialPort.PortName = cbPorts.SelectedItem.ToString();
                     serialPort.BaudRate = int.Parse(cbBaudRate.Text);
                     serialPort.Open();
+
                     UpdateSerialConnectionStatus(true);
-                    WriteMessage("Serial Port Connected", MessageTarget.SerialLog, true, false, false);
+                    WriteMessage("Serial Port Connected",
+                        MessageTarget.ProgramMessages, true, false, false);
                 }
                 catch (UnauthorizedAccessException)
                 {
                     MessageBox.Show("Access to the port is denied. The port may already be in use.", "Connection Error");
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    MessageBox.Show("Invalid baud rate selected.", "Connection Error");
-                }
-                catch (ArgumentException)
-                {
-                    MessageBox.Show("Invalid port name selected.", "Connection Error");
-                }
-                catch (IOException ex)
-                {
-                    MessageBox.Show($"I/O error: {ex.Message}", "Connection Error");
                 }
                 catch (Exception ex)
                 {
@@ -632,7 +586,8 @@ namespace SFCS
                 {
                     serialPort.Close();
                     UpdateSerialConnectionStatus(false);
-                    WriteMessage("Serial Port Disconnected", MessageTarget.SerialLog, true, false, false);
+                    WriteMessage("Serial Port Disconnected",
+                        MessageTarget.ProgramMessages, true, false, false);
                 }
                 catch (Exception ex)
                 {
@@ -641,27 +596,46 @@ namespace SFCS
             }
         }
 
+        private void btnSendSerial_Click(object sender, EventArgs e)
+        {
+            if (serialPort == null || !serialPort.IsOpen)
+            {
+                MessageBox.Show("Please connect to a serial port first.", "Error");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtSendSerial.Text))
+            {
+                MessageBox.Show("Please enter text to send.", "Error");
+                return;
+            }
+
+            try
+            {
+                string dataToSend = txtSendSerial.Text.Trim();
+                serialPort.WriteLine(dataToSend);
+                WriteMessage(dataToSend, MessageTarget.SerialMonitor,
+                    cbTimecodeSerial.Checked, true, false);
+                txtSendSerial.Clear();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error sending data: {ex.Message}", "Error");
+            }
+        }
         #endregion
 
         #region TCP Communication
-
         private async Task<bool> IsPortOpen(string host, int port, int timeout = 2000)
         {
             try
             {
-                using (var client = new TcpClient())
-                {
-                    var connectTask = client.ConnectAsync(host, port);
-                    var timeoutTask = Task.Delay(timeout);
+                var tcpClient = new TcpClient();
+                var connectTask = tcpClient.ConnectAsync(host, port);
+                var timeoutTask = Task.Delay(timeout);
 
-                    var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-                    if (completedTask == timeoutTask)
-                    {
-                        return false;
-                    }
-
-                    return client.Connected;
-                }
+                await Task.WhenAny(connectTask, timeoutTask);
+                return tcpClient.Connected;
             }
             catch
             {
@@ -669,7 +643,7 @@ namespace SFCS
             }
         }
 
-        private async void Connect()
+        private async Task Connect()
         {
             if (string.IsNullOrWhiteSpace(txtIPAddress.Text) || string.IsNullOrWhiteSpace(txtTcpPort.Text))
             {
@@ -684,109 +658,63 @@ namespace SFCS
                     Disconnect();
                     return;
                 }
+            }
 
-                try
+            try
+            {
+                UpdateUIConnectingState();
+                alreadyConnected = true;
+
+                // Check if port is open first
+                if (!await IsPortOpen(txtIPAddress.Text, int.Parse(txtTcpPort.Text)))
                 {
-                    UpdateUIConnectingState();
+                    throw new Exception("Port is not open or unreachable");
+                }
 
-                    // First check if port is open (without ping which might be blocked)
-                    bool portOpen = false;
-                    var checkTask = Task.Run(async () =>
-                    {
-                        portOpen = await IsPortOpen(txtIPAddress.Text, int.Parse(txtTcpPort.Text));
-                    });
+                // Initialize client with settings
+                client = new TcpClient
+                {
+                    LingerState = new LingerOption(true, 1),
+                    NoDelay = true,
+                    ReceiveTimeout = 5000,
+                    SendTimeout = 5000
+                };
 
-                    if (!checkTask.Wait(2000)) // Wait max 2 seconds for port check
-                    {
-                        throw new Exception("Port check timed out");
-                    }
+                // Connect with timeout
+                var cts = new CancellationTokenSource(TCP_CONNECT_TIMEOUT);
+                await Task.Run(() => client.Connect(txtIPAddress.Text, int.Parse(txtTcpPort.Text)));
 
-                    if (!portOpen)
-                    {
-                        throw new Exception($"Port {txtTcpPort.Text} is not responding");
-                    }
+                if (!client.Connected)
+                {
+                    throw new Exception("Connection failed");
+                }
 
-                    // Create new client with optimized settings
-                    client = new TcpClient
+                stream = client.GetStream();
+                isConnected = true;
+
+                // Start receive thread if not already running
+                if (receiveThread == null || !receiveThread.IsAlive)
+                {
+                    receiveThread = new Thread(TcpReceiveLoop)
                     {
-                        LingerState = new LingerOption(true, 1),
-                        NoDelay = true,
-                        ReceiveTimeout = 5000,
-                        SendTimeout = 5000
+                        IsBackground = true,
+                        Priority = ThreadPriority.AboveNormal
                     };
-
-                    // Use async connect with cancellation token
-                    var cts = new CancellationTokenSource();
-                    cts.CancelAfter(TCP_CONNECT_TIMEOUT);
-
-                    try
-                    {
-                        await client.ConnectAsync(txtIPAddress.Text, int.Parse(txtTcpPort.Text)).WithCancellation(cts.Token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw new TimeoutException($"Connection timed out after {TCP_CONNECT_TIMEOUT}ms");
-                    }
-
-                    if (!client.Connected)
-                    {
-                        throw new Exception("Connection failed");
-                    }
-
-                    // Connection successful
-                    stream = client.GetStream();
-                    isConnected = true;
-
-                    // Start receive thread if not already running
-                    if (receiveThread == null || !receiveThread.IsAlive)
-                    {
-                        receiveThread = new Thread(TcpServer_ReceiveData)
-                        {
-                            IsBackground = true,
-                            Priority = ThreadPriority.AboveNormal
-                        };
-                        receiveThread.Start();
-                    }
-
-                    UpdateConnectionStatus(true);
-                    WriteMessage($"Connected to {txtIPAddress.Text}:{txtTcpPort.Text}",
-                        MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                    receiveThread.Start();
                 }
-                catch (Exception ex)
-                {
-                    SafeDisconnect();
 
-                    // Enhanced error reporting
-                    string errorDetails = $"Error connecting to {txtIPAddress.Text}:{txtTcpPort.Text}\n" +
-                                        $"Exception: {ex.Message}\n" +
-                                        $"Stack Trace: {ex.StackTrace}";
-
-                    WriteMessage(errorDetails, MessageTarget.ServerMonitor, true, false, false);
-
-                    // Additional diagnostics
-                    try
-                    {
-                        var ipAddresses = Dns.GetHostAddresses(txtIPAddress.Text);
-                        WriteMessage($"DNS resolution: {(ipAddresses.Length > 0 ? "Success" : "Failed")}",
-                            MessageTarget.ServerMonitor, false, false, false);
-                    }
-                    catch (Exception dnsEx)
-                    {
-                        WriteMessage($"DNS error: {dnsEx.Message}",
-                            MessageTarget.ServerMonitor, false, false, false);
-                    }
-                }
-                finally
-                {
-                    if (InvokeRequired)
-                    {
-                        Invoke(new Action(() => btnConnectWiFi.Enabled = true));
-                    }
-                    else
-                    {
-                        btnConnectWiFi.Enabled = true;
-                    }
-                }
+                UpdateConnectionStatus(true);
+                WriteMessage($"Connected to {txtIPAddress.Text}:{txtTcpPort.Text}",
+                    MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+            }
+            catch (OperationCanceledException)
+            {
+                WriteMessage("Connection timed out", MessageTarget.ProgramMessages, true, false, false);
+            }
+            catch (Exception ex)
+            {
+                WriteMessage($"Connection error: {ex.Message}", MessageTarget.ProgramMessages, true, false, false);
+                SafeDisconnect();
             }
         }
 
@@ -798,48 +726,31 @@ namespace SFCS
                 {
                     isConnected = false;
 
-                    // Stop receive thread
-                    if (receiveThread != null && receiveThread.IsAlive)
+                    // Clean up receive thread
+                    if (receiveThread != null)
                     {
-                        var cts = new CancellationTokenSource();
-                        cts.CancelAfter(THREAD_JOIN_TIMEOUT);
-                        try
+                        if (!receiveThread.Join(THREAD_JOIN_TIMEOUT))
                         {
-                            receiveThread.Join(THREAD_JOIN_TIMEOUT);
-                        }
-                        catch (ThreadAbortException)
-                        {
-                            Thread.ResetAbort();
+                            receiveThread.Abort();
                         }
                         receiveThread = null;
                     }
 
-                    // Close stream
-                    if (stream != null)
-                    {
-                        stream.Close();
-                        stream.Dispose();
-                        stream = null;
-                    }
+                    // Clean up network resources
+                    stream?.Close();
+                    stream?.Dispose();
+                    stream = null;
 
-                    // Close client
-                    if (client != null)
-                    {
-                        if (client.Connected)
-                        {
-                            client.Close();
-                        }
-                        client.Dispose();
-                        client = null;
-                    }
+                    client?.Close();
+                    client?.Dispose();
+                    client = null;
 
                     UpdateConnectionStatus(false);
                     WriteMessage("Disconnected", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
                 }
                 catch (Exception ex)
                 {
-                    WriteMessage($"Disconnection error: {ex.Message}",
-                        MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                    WriteMessage($"Disconnection error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
                 }
             }
         }
@@ -853,74 +764,45 @@ namespace SFCS
             }
             catch (Exception ex)
             {
-                WriteMessage($"Dispose error: {ex.Message}",
-                    MessageTarget.ServerMonitor, true, false, false);
+                WriteMessage($"Cleanup error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
             }
             finally
             {
                 stream = null;
                 client = null;
+                isConnected = false;
             }
         }
 
-        private void TcpServer_ReceiveData()
+        private void TcpReceiveLoop()
         {
-            byte[] buffer = new byte[TCP_RECEIVE_BUFFER_SIZE];
+            var buffer = new byte[TCP_RECEIVE_BUFFER_SIZE];
 
             try
             {
-                while (isConnected && client != null && client.Connected)
+                while (isConnected && client?.Connected == true)
                 {
                     try
                     {
-                        if (stream != null && stream.DataAvailable)
+                        if (stream?.DataAvailable == true)
                         {
                             int bytesRead = stream.Read(buffer, 0, buffer.Length);
                             if (bytesRead > 0)
                             {
                                 string receivedData = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-                                _tcpBuffer.Append(receivedData);
-
-                                // Process buffer with size limit check
-                                if (_tcpBuffer.Length > MAX_BUFFER_SIZE)
-                                {
-                                    _tcpBuffer.Remove(0, _tcpBuffer.Length - MAX_BUFFER_SIZE);
-                                    WriteMessage("TCP buffer overflow, truncated",
-                                        MessageTarget.ServerMonitor, true, false, false);
-                                }
-
-                                ProcessBuffer(_tcpBuffer, (line) =>
-                                {
-                                    WriteMessage(line, MessageTarget.ServerMonitor,
-                                        cbTimecodeServer.Checked, true, true);
-                                    WriteMessage(line, MessageTarget.ServerLog,
-                                        false, false, false);
-                                    ProcessIncomingData(line);
-                                });
+                                ProcessReceivedData(receivedData);
                             }
                         }
                         else
                         {
-                            // Small delay when no data available to prevent CPU overload
-                            Thread.Sleep(50);
+                            Thread.Sleep(50); // Small delay when no data available
                         }
                     }
-                    catch (IOException ioEx)
-                    {
-                        // Handle connection loss
-                        if (isConnected)
-                        {
-                            WriteMessage($"Connection error: {ioEx.Message}",
-                                MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
-                        }
-                        break;
-                    }
-                    catch (Exception ex)
+                    catch (IOException ex)
                     {
                         if (isConnected)
                         {
-                            WriteMessage($"Receive error: {ex.Message}",
-                                MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                            WriteMessage($"Network error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
                         }
                         break;
                     }
@@ -932,10 +814,28 @@ namespace SFCS
                 {
                     isConnected = false;
                     UpdateConnectionStatus(false);
-                    WriteMessage("Connection lost",
-                        MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                    WriteMessage("Connection lost", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
                 }
             }
+        }
+
+        private void ProcessReceivedData(string data)
+        {
+            _tcpBuffer.Append(data);
+
+            // Prevent buffer overflow
+            if (_tcpBuffer.Length > MAX_BUFFER_SIZE)
+            {
+                _tcpBuffer.Remove(0, _tcpBuffer.Length - MAX_BUFFER_SIZE);
+                WriteMessage("TCP buffer overflow, truncated", MessageTarget.ServerMonitor, true, false, false);
+            }
+
+            // Process complete lines
+            ProcessBuffer(_tcpBuffer, line =>
+            {
+                WriteMessage(line, MessageTarget.ServerMonitor, cbTimecodeServer.Checked, true, true);
+                ProcessIncomingData(line);
+            });
         }
 
         private async void btnConnectWiFi_Click(object sender, EventArgs e)
@@ -946,121 +846,93 @@ namespace SFCS
             }
             else
             {
-                await Task.Run(() => Connect());
+                await Connect();
             }
         }
 
         private void btnSendTCP_Click(object sender, EventArgs e)
         {
-            if (client == null || !client.Connected || stream == null)
-            {
-                MessageBox.Show("Please connect to the TCP server first.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(txtSendTCP.Text))
-            {
-                MessageBox.Show("Please enter text to send.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+            if (!ValidateTcpSendPreconditions()) return;
 
             try
             {
                 string dataToSend = txtSendTCP.Text.Trim();
-                byte[] dataBytes = Encoding.ASCII.GetBytes(dataToSend + "\n");
+                SendTcpData(dataToSend);
 
-                lock (connectionLock)
-                {
-                    if (stream != null && stream.CanWrite)
-                    {
-                        stream.Write(dataBytes, 0, dataBytes.Length);
-                        stream.Flush();
-                    }
-                    else
-                    {
-                        throw new Exception("Network stream is not writable");
-                    }
-                }
-
-                WriteMessage(dataToSend, MessageTarget.ServerMonitor,
-                    cbTimecodeServer.Checked, true, false);
+                WriteMessage(dataToSend, MessageTarget.ServerMonitor, cbTimecodeServer.Checked, true, false);
                 txtSendTCP.Clear();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error sending data: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                if (client != null && !client.Connected)
-                {
-                    Disconnect();
-                }
+                HandleTcpSendError(ex);
             }
         }
 
-        #endregion
-
-        #region Task Extensions
-
-        public static class TaskExtensions
+        private bool ValidateTcpSendPreconditions()
         {
-            public static async Task<T> WithCancellation<T>(this Task<T> task, CancellationToken cancellationToken)
+            if (client == null || !client.Connected || stream == null)
             {
-                var tcs = new TaskCompletionSource<bool>();
-                using (cancellationToken.Register(s => ((TaskCompletionSource<bool>)s).TrySetResult(true), tcs))
-                {
-                    if (task != await Task.WhenAny(task, tcs.Task))
-                    {
-                        throw new OperationCanceledException(cancellationToken);
-                    }
-                }
-                return await task;
+                MessageBox.Show("Please connect to the TCP server first.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
             }
 
-            public static async Task WithCancellation(this Task task, CancellationToken cancellationToken)
+            if (string.IsNullOrWhiteSpace(txtSendTCP.Text))
             {
-                var tcs = new TaskCompletionSource<bool>();
-                using (cancellationToken.Register(s => ((TaskCompletionSource<bool>)s).TrySetResult(true), tcs))
+                MessageBox.Show("Please enter text to send.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+
+            return true;
+        }
+
+        private void SendTcpData(string data)
+        {
+            lock (connectionLock)
+            {
+                if (stream?.CanWrite != true)
                 {
-                    if (task != await Task.WhenAny(task, tcs.Task))
-                    {
-                        throw new OperationCanceledException(cancellationToken);
-                    }
+                    throw new Exception("Network stream is not writable");
                 }
-                await task;
+
+                byte[] dataBytes = Encoding.ASCII.GetBytes(data + "\n");
+                stream.Write(dataBytes, 0, dataBytes.Length);
+                stream.Flush();
             }
         }
 
+        private void HandleTcpSendError(Exception ex)
+        {
+            MessageBox.Show($"Error sending data: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+            if (client?.Connected == false)
+            {
+                Disconnect();
+            }
+        }
         #endregion
 
         #region Recording and File Operations
-
         private void StartRecording()
         {
             try
             {
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 currentLogFile = $"{LOG_FILE_PREFIX}{timestamp}.csv";
-
-                // Write header matching the actual data columns
-                string header = "Timestamp,Temperature1,Temperature2,Mass";
+                string header = "Timestamp;Temperature1;Temperature2;Mass";
                 File.WriteAllText(currentLogFile, header + Environment.NewLine);
 
-                // Write metadata if available
                 if (!string.IsNullOrEmpty(txtLogMetadata.Text))
-                {
                     File.AppendAllText(currentLogFile, $"# {txtLogMetadata.Text}" + Environment.NewLine);
-                }
 
                 recordingStartTime = DateTime.Now;
+
                 isRecording = true;
-                btnRecord.BackColor = Color.Red;
-                lblRecordingStatus.Text = $"Recording to: {currentLogFile}";
+                btnRecord.Image = Properties.Resources.Recording;
+                lblRecordingStatus.Text = "Recording";
                 lblRecordingStatus.ForeColor = Color.Red;
 
-                WriteMessage("Recording started", MessageTarget.ServerLog, true, false, false);
+                recordingTimer.Start();
+                WriteMessage("Recording started", MessageTarget.ProgramMessages, true, false, false);
             }
             catch (Exception ex)
             {
@@ -1071,18 +943,18 @@ namespace SFCS
 
         private void StopRecording()
         {
-            isRecording = false;
-            btnRecord.BackColor = Color.Transparent;
-            lblRecordingStatus.Text = "Not recording";
-            lblRecordingStatus.ForeColor = Color.Black;
-
-            WriteMessage("Recording stopped", MessageTarget.ServerLog, true, false, false);
-
-            // Add summary to log file
             try
             {
                 if (!string.IsNullOrEmpty(currentLogFile))
                 {
+                    isRecording = false;
+                    btnRecord.Image = Properties.Resources.notRecording;
+                    lblRecordingStatus.Text = "Not recording";
+                    lblRecordingStatus.ForeColor = Color.Black;
+
+                    recordingTimer.Stop();
+                    WriteMessage("Recording stopped", MessageTarget.ProgramMessages, true, false, false);
+
                     TimeSpan duration = DateTime.Now - recordingStartTime;
                     File.AppendAllText(currentLogFile, $"# Recording duration: {duration.TotalSeconds} seconds" + Environment.NewLine);
                     File.AppendAllText(currentLogFile, $"# Max Temp1: {lastTemp1}°C" + Environment.NewLine);
@@ -1092,9 +964,9 @@ namespace SFCS
             }
             catch (Exception ex)
             {
-                WriteMessage($"Error finalizing log file: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
+                WriteMessage($"Error finalizing log file: {ex.Message}",
+                    MessageTarget.ServerMonitor, true, false, false);
             }
-
             currentLogFile = "";
         }
 
@@ -1102,14 +974,6 @@ namespace SFCS
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(txtIPAddress.Text) ||
-                    string.IsNullOrWhiteSpace(txtTcpPort.Text))
-                {
-                    MessageBox.Show("IP Address and Port are required fields.", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
                 WifiConfig config = new WifiConfig
                 {
                     IpAddress = txtIPAddress.Text,
@@ -1127,15 +991,15 @@ namespace SFCS
                     LogMetadata = txtLogMetadata.Text
                 };
 
-                string configJson = Newtonsoft.Json.JsonConvert.SerializeObject(config, Newtonsoft.Json.Formatting.Indented);
+                string configJson = JsonConvert.SerializeObject(config, Formatting.Indented);
                 File.WriteAllText(CONFIG_FILE, configJson);
 
-                WriteMessage("Configuration saved", MessageTarget.ServerLog, true, false, false);
+                WriteMessage("Configuration saved", MessageTarget.ProgramMessages, true, false, false);
             }
             catch (Exception ex)
             {
                 WriteMessage($"Configuration save error: {ex.Message}",
-                    MessageTarget.ServerMonitor, true, false, false);
+                    MessageTarget.ProgramMessages, true, false, false);
                 MessageBox.Show($"Error saving configuration: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -1148,7 +1012,7 @@ namespace SFCS
                 if (File.Exists(CONFIG_FILE))
                 {
                     string configJson = File.ReadAllText(CONFIG_FILE);
-                    WifiConfig config = Newtonsoft.Json.JsonConvert.DeserializeObject<WifiConfig>(configJson);
+                    WifiConfig config = JsonConvert.DeserializeObject<WifiConfig>(configJson);
 
                     txtIPAddress.Text = config.IpAddress;
                     txtTcpPort.Text = config.Port;
@@ -1164,13 +1028,19 @@ namespace SFCS
                     cbTimecodeServer.Checked = config.ShowTimecodeServer;
                     txtLogMetadata.Text = config.LogMetadata;
 
-                    WriteMessage("Configuration loaded", MessageTarget.SerialMonitor, true, false, false);
+                    WriteMessage("Configuration loaded", MessageTarget.ProgramMessages, true, false, false);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading configuration: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error loading configuration: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void showConfigToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Show Config clicked!", "Configuration", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void ExportData(string format)
@@ -1188,13 +1058,9 @@ namespace SFCS
                         if (saveFileDialog.ShowDialog() == DialogResult.OK)
                         {
                             StringBuilder csvContent = new StringBuilder();
-                            // Write header
                             csvContent.AppendLine("Timestamp,Temperature1,Temperature2,Mass");
-                            // Write data
                             foreach (DataRow row in liveDataTable.Rows)
-                            {
                                 csvContent.AppendLine($"{row["Time"]},{row["Temp1"]},{row["Temp2"]},{row["Mass"]}");
-                            }
                             File.WriteAllText(saveFileDialog.FileName, csvContent.ToString());
                         }
                         break;
@@ -1205,6 +1071,292 @@ namespace SFCS
                         if (saveFileDialog.ShowDialog() == DialogResult.OK)
                         {
                             StringBuilder txtContent = new StringBuilder();
-                            // Write header
                             txtContent.AppendLine("ESP32 Data Logger Export");
-                            txtContent.AppendLine($"
+                            txtContent.AppendLine($"Exported: {timestamp}");
+                            txtContent.AppendLine("---------------------------------");
+                            txtContent.AppendLine("Time\tTemp1\tTemp2\tMass");
+                            foreach (DataRow row in liveDataTable.Rows)
+                                txtContent.AppendLine($"{row["Time"]}\t{row["Temp1"]}\t{row["Temp2"]}\t{row["Mass"]}");
+                            File.WriteAllText(saveFileDialog.FileName, txtContent.ToString());
+                        }
+                        break;
+
+                    case "RAW":
+                        saveFileDialog.Filter = "Raw data files (*.raw)|*.raw";
+                        saveFileDialog.FileName = $"export_{timestamp}.raw";
+                        if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            StringBuilder rawContent = new StringBuilder();
+                            rawContent.AppendLine("Serial Monitor:");
+                            rawContent.AppendLine(rtbMonitorSerial.Text);
+                            rawContent.AppendLine("\nServer Monitor:");
+                            rawContent.AppendLine(rtbMonitorServer.Text);
+                            File.WriteAllText(saveFileDialog.FileName, rawContent.ToString());
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error exporting data: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        #endregion
+
+        #region Event Handlers
+        private void btnStart_Click(object sender, EventArgs e)
+        {
+            if (client == null || !client.Connected || stream == null)
+            {
+                MessageBox.Show("Please connect to the TCP server first.", "Error");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtStartCmdWifi.Text))
+            {
+                MessageBox.Show("Start command is empty.", "Error");
+                return;
+            }
+
+            try
+            {
+                string command = txtStartCmdWifi.Text.Trim();
+                byte[] dataBytes = Encoding.ASCII.GetBytes(command + "\n");
+                stream.Write(dataBytes, 0, dataBytes.Length);
+                stream.Flush();
+
+                WriteMessage(command, MessageTarget.ServerMonitor,
+                    cbTimecodeServer.Checked, true, false);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error sending start command: {ex.Message}", "Error");
+            }
+        }
+
+        private void btnRecord_Click(object sender, EventArgs e)
+        {
+            if (!isRecording)
+            {
+                StartRecording();
+            }
+            else
+            {
+                StopRecording();
+            }
+        }
+
+        private void btnStop_Click(object sender, EventArgs e)
+        {
+            if (client == null || !client.Connected || stream == null)
+            {
+                MessageBox.Show("Please connect to the TCP server first.", "Error");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtStopCmdWifi.Text))
+            {
+                MessageBox.Show("Stop command is empty.", "Error");
+                return;
+            }
+
+            try
+            {
+                string command = txtStopCmdWifi.Text.Trim();
+                byte[] dataBytes = Encoding.ASCII.GetBytes(command + "\n");
+                stream.Write(dataBytes, 0, dataBytes.Length);
+                stream.Flush();
+
+                WriteMessage(command, MessageTarget.ServerMonitor,
+                    cbTimecodeServer.Checked, true, false);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error sending stop command: {ex.Message}", "Error");
+            }
+        }
+
+        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ExportData("CSV");
+        }
+
+        private void ExportAsCSVToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ExportData("CSV");
+        }
+
+        private void ExportTXTToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ExportData("TXT");
+        }
+
+        private void ExportRawToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ExportData("RAW");
+        }
+
+        private void ExportConfigToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SaveConfig();
+            MessageBox.Show("Configuration saved successfully.", "Success",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void ImportConfigToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFile = new OpenFileDialog();
+            openFile.Filter = "Config Files|*.cfg";
+            openFile.Title = "Import Configuration";
+
+            if (openFile.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    string configJson = File.ReadAllText(openFile.FileName);
+                    WifiConfig config = JsonConvert.DeserializeObject<WifiConfig>(configJson);
+
+                    txtIPAddress.Text = config.IpAddress;
+                    txtTcpPort.Text = config.Port;
+                    txtSSID.Text = config.Ssid;
+                    txtPassword.Text = config.Password;
+                    txtStartCmdWifi.Text = config.StartCommand;
+                    txtStopCmdWifi.Text = config.StopCommand;
+                    txtPortCmd.Text = config.PortCommand;
+                    txtSSIDcmd.Text = config.SsidCommand;
+                    txtPSWcmd.Text = config.PasswordCommand;
+                    cbAutoSendWifi.Checked = config.AutoSendEnabled;
+                    cbTimecodeSerial.Checked = config.ShowTimecodeSerial;
+                    cbTimecodeServer.Checked = config.ShowTimecodeServer;
+                    txtLogMetadata.Text = config.LogMetadata;
+
+                    WriteMessage("Configuration imported successfully",
+                        MessageTarget.ProgramMessages, true, false, false);
+                    MessageBox.Show("Configuration imported successfully.", "Success",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error importing configuration: {ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void btnRefreshPorts_Click(object sender, EventArgs e)
+        {
+            RefreshAvailablePorts();
+            WriteMessage("Serial ports refreshed",
+                MessageTarget.ProgramMessages, true, false, false);
+        }
+
+        private void btnClearSerial_Click(object sender, EventArgs e)
+        {
+            rtbMonitorSerial.Clear();
+        }
+
+        private void btnClearServer_Click(object sender, EventArgs e)
+        {
+            rtbMonitorServer.Clear();
+        }
+
+        private void btnClearData_Click(object sender, EventArgs e)
+        {
+            ClearAllData();
+            WriteMessage("All data cleared",
+                MessageTarget.ProgramMessages, true, false, false);
+        }
+
+        private void btnFullscreen_Click(object sender, EventArgs e)
+        {
+            ToggleFullscreen(!isFullscreen);
+        }
+
+        private void recordingTimer_Tick(object sender, EventArgs e)
+        {
+            UpdateRecordingTimer();
+        }
+
+        private void MainWindow_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            SafeClose();
+        }
+
+        private void UpdateUIConnectingState()
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(UpdateUIConnectingState));
+                return;
+            }
+
+            btnConnectWiFi.Enabled = false;
+            lblConnectionStatus.Text = "Connecting...";
+            lblConnectionStatus.ForeColor = Color.Orange;
+        }
+
+        private void txtSendSerial_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter && serialPort != null && serialPort.IsOpen)
+            {
+                btnSendSerial_Click(sender, e);
+                e.Handled = e.SuppressKeyPress = true;
+            }
+        }
+
+        private void txtSendTCP_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter && client != null && client.Connected)
+            {
+                btnSendTCP_Click(sender, e);
+                e.Handled = e.SuppressKeyPress = true;
+            }
+        }
+
+        private void Quit_Click(object sender, EventArgs e)
+        {
+            SafeClose();
+        }
+
+        private void tsbFullscren_Click(object sender, EventArgs e)
+        {
+            ToggleFullscreen(!isFullscreen);
+        }
+
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("SFCS - Serial and TCP Data Logger\nVersion 1.0\n\nA tool for monitoring and logging data from serial and TCP connections.",
+                "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void toolStripButtonR_Click(object sender, EventArgs e)
+        {
+            RefreshAvailablePorts();
+        }
+
+        private void cbViewPassword_CheckedChanged(object sender, EventArgs e)
+        {
+            txtPassword.PasswordChar = cbViewPassword.Checked ? '\0' : '*';
+        }
+
+        private void cbAutoSendWifi_CheckedChanged(object sender, EventArgs e)
+        {
+            if (cbAutoSendWifi.Checked)
+            {
+                WriteMessage("Auto-send WiFi credentials enabled.", MessageTarget.ProgramMessages, true, false, false);
+                txtPortCmd.Enabled = true;
+                txtSSIDcmd.Enabled = true;
+                txtPSWcmd.Enabled = true;
+            }
+            else
+            {
+                WriteMessage("Auto-send WiFi credentials disabled.", MessageTarget.ProgramMessages, true, false, false);
+                txtPortCmd.Enabled = false;
+                txtSSIDcmd.Enabled = false;
+                txtPSWcmd.Enabled = false;
+            }
+        }
+        #endregion
+    }
+}
