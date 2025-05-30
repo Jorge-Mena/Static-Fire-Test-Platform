@@ -32,7 +32,7 @@
               "RelativeDocumentMoniker": "SFCS\\Form1.cs",
               "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs",
               "RelativeToolTip": "SFCS\\Form1.cs",
-              "ViewState": "AgIAANYCAAAAAAAAAAAkwJgDAABFAAAAAAAAAA==",
+              "ViewState": "AgIAAMUAAAAAAAAAAADgv38CAAAQAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-05-29T01:49:22.255Z",
               "IsPinned": true,
@@ -52,8 +52,7 @@
               "RelativeToolTip": "SFCS\\Form1.Designer.cs",
               "ViewState": "AgIAAEkFAAAAAAAAAADwv1UFAABPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-05-29T01:47:12.372Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-05-29T01:47:12.372Z"
             },
             {
               "$type": "Document",
@@ -64,8 +63,7 @@
               "ToolTip": "C:\\Users\\jorge\\Documents\\NorthSpace\\Satic Fire\\Static-Fire-Test-Platform\\SFCS - Desktop Connector App\\SFCS\\Form1.cs [Design]",
               "RelativeToolTip": "SFCS\\Form1.cs [Design]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-05-29T01:47:00.865Z",
-              "EditorCaption": " [Design]"
+              "WhenOpened": "2025-05-29T01:47:00.865Z"
             }
           ]
         }

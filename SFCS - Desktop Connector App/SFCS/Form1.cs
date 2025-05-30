@@ -25,6 +25,12 @@ namespace SFCS
         private const string CONFIG_FILE = "config.cfg";
         private const string LOG_FILE_PREFIX = "log_";
 
+        private CancellationTokenSource tcpCancelToken;
+        private int reconnectAttempts = 0;
+        private const int MAX_RECONNECT_ATTEMPTS = 10;
+        private const int RECONNECT_DELAY_MS = 2000;
+        private volatile bool wantConnected = false;
+
         // Application state
         private bool isFullscreen = true;
         private bool alreadyConnected = false;
@@ -626,167 +632,134 @@ namespace SFCS
         #endregion
 
         #region TCP Communication
+
         private async Task<bool> IsPortOpen(string host, int port, int timeout = 2000)
         {
             try
             {
-                var tcpClient = new TcpClient();
-                var connectTask = tcpClient.ConnectAsync(host, port);
-                var timeoutTask = Task.Delay(timeout);
-
-                await Task.WhenAny(connectTask, timeoutTask);
-                return tcpClient.Connected;
+                var client = new TcpClient();
+                var connectTask = client.ConnectAsync(host, port);
+                var completed = await Task.WhenAny(connectTask, Task.Delay(timeout));
+                return client.Connected && completed == connectTask;
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
 
         private async Task Connect()
         {
-            if (string.IsNullOrWhiteSpace(txtIPAddress.Text) || string.IsNullOrWhiteSpace(txtTcpPort.Text))
+            wantConnected = true;
+            reconnectAttempts = 0;
+            await ConnectOrReconnect();
+        }
+
+        private async Task ConnectOrReconnect()
+        {
+            while (wantConnected)
             {
-                MessageBox.Show("Please enter valid IP and Port", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            lock (connectionLock)
-            {
-                if (isConnected)
+                lock (connectionLock)
                 {
-                    Disconnect();
-                    return;
+                    if (isConnected)
+                        return;
                 }
-            }
-
-            try
-            {
-                UpdateUIConnectingState();
-                alreadyConnected = true;
-
-                // Check if port is open first
-                if (!await IsPortOpen(txtIPAddress.Text, int.Parse(txtTcpPort.Text)))
+                try
                 {
-                    throw new Exception("Port is not open or unreachable");
-                }
+                    UpdateUIConnectingState();
 
-                // Initialize client with settings
-                client = new TcpClient
-                {
-                    LingerState = new LingerOption(true, 1),
-                    NoDelay = true,
-                    ReceiveTimeout = 5000,
-                    SendTimeout = 5000
-                };
+                    var newClient = new TcpClient();
+                    var connectTask = newClient.ConnectAsync(txtIPAddress.Text, int.Parse(txtTcpPort.Text));
+                    var timeoutTask = Task.Delay(TCP_CONNECT_TIMEOUT);
+                    var completed = await Task.WhenAny(connectTask, timeoutTask);
 
-                // Connect with timeout
-                var cts = new CancellationTokenSource(TCP_CONNECT_TIMEOUT);
-                await Task.Run(() => client.Connect(txtIPAddress.Text, int.Parse(txtTcpPort.Text)));
+                    if (completed == timeoutTask || !newClient.Connected)
+                        throw new TimeoutException("Connection timed out or failed.");
 
-                if (!client.Connected)
-                {
-                    throw new Exception("Connection failed");
-                }
-
-                stream = client.GetStream();
-                isConnected = true;
-
-                // Start receive thread if not already running
-                if (receiveThread == null || !receiveThread.IsAlive)
-                {
-                    receiveThread = new Thread(TcpReceiveLoop)
+                    lock (connectionLock)
                     {
-                        IsBackground = true,
-                        Priority = ThreadPriority.AboveNormal
-                    };
-                    receiveThread.Start();
-                }
+                        client = newClient;
+                        stream = client.GetStream();
+                        isConnected = true;
+                        tcpCancelToken = new CancellationTokenSource();
+                    }
 
-                UpdateConnectionStatus(true);
-                WriteMessage($"Connected to {txtIPAddress.Text}:{txtTcpPort.Text}",
-                    MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
-            }
-            catch (OperationCanceledException)
-            {
-                WriteMessage("Connection timed out", MessageTarget.ProgramMessages, true, false, false);
-            }
-            catch (Exception ex)
-            {
-                WriteMessage($"Connection error: {ex.Message}", MessageTarget.ProgramMessages, true, false, false);
-                SafeDisconnect();
+                    UpdateConnectionStatus(true);
+                    WriteMessage($"Connected to {txtIPAddress.Text}:{txtTcpPort.Text}",
+                        MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+
+                    StartReceiveLoop(tcpCancelToken.Token);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    SafeDisconnect();
+                    reconnectAttempts++;
+                    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS)
+                    {
+                        WriteMessage($"Auto-reconnect failed after {reconnectAttempts} tries.", MessageTarget.ServerMonitor, true, false, false);
+                        break;
+                    }
+                    WriteMessage($"TCP connect failed: {ex?.Message ?? "Unknown"}. Retrying in {RECONNECT_DELAY_MS / 1000}s...", MessageTarget.ServerMonitor, true, false, false);
+                    await Task.Delay(RECONNECT_DELAY_MS);
+                }
             }
         }
 
         private void Disconnect()
         {
+            wantConnected = false;
             lock (connectionLock)
             {
+                isConnected = false;
                 try
                 {
-                    isConnected = false;
-
-                    // Clean up receive thread
-                    if (receiveThread != null)
-                    {
-                        if (!receiveThread.Join(THREAD_JOIN_TIMEOUT))
-                        {
-                            receiveThread.Abort();
-                        }
-                        receiveThread = null;
-                    }
-
-                    // Clean up network resources
-                    stream?.Close();
-                    stream?.Dispose();
-                    stream = null;
-
-                    client?.Close();
-                    client?.Dispose();
-                    client = null;
-
-                    UpdateConnectionStatus(false);
-                    WriteMessage("Disconnected", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                    tcpCancelToken?.Cancel();
                 }
-                catch (Exception ex)
-                {
-                    WriteMessage($"Disconnection error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
-                }
+                catch { }
+                try { stream?.Dispose(); } catch { }
+                try { client?.Dispose(); } catch { }
+                stream = null;
+                client = null;
+                tcpCancelToken = null;
             }
+            UpdateConnectionStatus(false);
+            WriteMessage("Disconnected", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
         }
 
         private void SafeDisconnect()
         {
-            try
+            lock (connectionLock)
             {
-                stream?.Dispose();
-                client?.Dispose();
-            }
-            catch (Exception ex)
-            {
-                WriteMessage($"Cleanup error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
-            }
-            finally
-            {
+                isConnected = false;
+                try { tcpCancelToken?.Cancel(); } catch { }
+                try { stream?.Dispose(); } catch { }
+                try { client?.Dispose(); } catch { }
                 stream = null;
                 client = null;
-                isConnected = false;
+                tcpCancelToken = null;
             }
+            UpdateConnectionStatus(false);
         }
 
-        private void TcpReceiveLoop()
+        /// <summary>
+        /// Starts the receive loop in a background thread. Handles connection loss and triggers reconnect.
+        /// </summary>
+        private void StartReceiveLoop(CancellationToken cancelToken)
         {
-            var buffer = new byte[TCP_RECEIVE_BUFFER_SIZE];
-
-            try
+            Task.Run(async () =>
             {
-                while (isConnected && client?.Connected == true)
+                byte[] buffer = new byte[TCP_RECEIVE_BUFFER_SIZE];
+                try
                 {
-                    try
+                    while (!cancelToken.IsCancellationRequested && wantConnected)
                     {
-                        if (stream?.DataAvailable == true)
+                        lock (connectionLock)
                         {
-                            int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                            if (!isConnected || stream == null || client == null || !client.Connected)
+                                throw new IOException("TCP connection lost");
+                        }
+
+                        if (stream.DataAvailable)
+                        {
+                            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancelToken);
                             if (bytesRead > 0)
                             {
                                 string receivedData = Encoding.ASCII.GetString(buffer, 0, bytesRead);
@@ -795,42 +768,35 @@ namespace SFCS
                         }
                         else
                         {
-                            Thread.Sleep(50); // Small delay when no data available
+                            await Task.Delay(50, cancelToken);
                         }
-                    }
-                    catch (IOException ex)
-                    {
-                        if (isConnected)
-                        {
-                            WriteMessage($"Network error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
-                        }
-                        break;
                     }
                 }
-            }
-            finally
-            {
-                if (isConnected)
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
                 {
-                    isConnected = false;
+                    WriteMessage($"TCP receive error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
+                    lock (connectionLock)
+                    {
+                        isConnected = false;
+                    }
                     UpdateConnectionStatus(false);
-                    WriteMessage("Connection lost", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
+                    WriteMessage("Connection lost, attempting auto-reconnect...", MessageTarget.ServerMonitor, true, false, false);
+                    await ConnectOrReconnect();
                 }
-            }
+            }, cancelToken);
         }
 
         private void ProcessReceivedData(string data)
         {
             _tcpBuffer.Append(data);
 
-            // Prevent buffer overflow
             if (_tcpBuffer.Length > MAX_BUFFER_SIZE)
             {
                 _tcpBuffer.Remove(0, _tcpBuffer.Length - MAX_BUFFER_SIZE);
                 WriteMessage("TCP buffer overflow, truncated", MessageTarget.ServerMonitor, true, false, false);
             }
 
-            // Process complete lines
             ProcessBuffer(_tcpBuffer, line =>
             {
                 WriteMessage(line, MessageTarget.ServerMonitor, cbTimecodeServer.Checked, true, true);
@@ -852,63 +818,43 @@ namespace SFCS
 
         private void btnSendTCP_Click(object sender, EventArgs e)
         {
-            if (!ValidateTcpSendPreconditions()) return;
+            if (client == null || !client.Connected || stream == null)
+            {
+                MessageBox.Show("Please connect to the TCP server first.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtSendTCP.Text))
+            {
+                MessageBox.Show("Please enter text to send.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
 
             try
             {
                 string dataToSend = txtSendTCP.Text.Trim();
-                SendTcpData(dataToSend);
+                byte[] dataBytes = Encoding.ASCII.GetBytes(dataToSend + "\n");
+
+                lock (connectionLock)
+                {
+                    if (stream != null && stream.CanWrite)
+                    {
+                        stream.Write(dataBytes, 0, dataBytes.Length);
+                        stream.Flush();
+                    }
+                }
 
                 WriteMessage(dataToSend, MessageTarget.ServerMonitor, cbTimecodeServer.Checked, true, false);
                 txtSendTCP.Clear();
             }
             catch (Exception ex)
             {
-                HandleTcpSendError(ex);
+                MessageBox.Show($"Error sending data: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (client == null || !client.Connected)
+                    Task.Run(() => ConnectOrReconnect());
             }
         }
 
-        private bool ValidateTcpSendPreconditions()
-        {
-            if (client == null || !client.Connected || stream == null)
-            {
-                MessageBox.Show("Please connect to the TCP server first.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(txtSendTCP.Text))
-            {
-                MessageBox.Show("Please enter text to send.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return false;
-            }
-
-            return true;
-        }
-
-        private void SendTcpData(string data)
-        {
-            lock (connectionLock)
-            {
-                if (stream?.CanWrite != true)
-                {
-                    throw new Exception("Network stream is not writable");
-                }
-
-                byte[] dataBytes = Encoding.ASCII.GetBytes(data + "\n");
-                stream.Write(dataBytes, 0, dataBytes.Length);
-                stream.Flush();
-            }
-        }
-
-        private void HandleTcpSendError(Exception ex)
-        {
-            MessageBox.Show($"Error sending data: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-            if (client?.Connected == false)
-            {
-                Disconnect();
-            }
-        }
         #endregion
 
         #region Recording and File Operations
