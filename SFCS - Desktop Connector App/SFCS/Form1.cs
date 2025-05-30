@@ -276,25 +276,26 @@ namespace SFCS
 
             if (isRecording)
             {
-                if (MessageBox.Show("Are you sure you want to stop recording?", "Stop recording?",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.No)
-                {
+                var result = MessageBox.Show(
+                    "Recording is in progress. Stop recording and exit?",
+                    "Stop Recording?",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (result == DialogResult.No)
                     return;
-                }
-                StopRecording();
+
+                try { StopRecording(); } catch { }
             }
 
-            try
-            {
-                if (isConnected) Disconnect();
-                if (isSerialConnected) serialPort.Close();
-                SaveConfig();
-                Close();
-            }
-            catch (Exception ex)
-            {
-                WriteMessage($"Error during close: {ex.Message}", MessageTarget.ProgramMessages, true, false, false);
-            }
+            try { if (isConnected) Disconnect(); } catch { }
+            try { if (isSerialConnected && serialPort != null && serialPort.IsOpen) serialPort.Close(); } catch { }
+            try { SaveConfig(); } catch { }
+
+            // Failsafe: force kill process if form doesn't close
+            try { this.Close(); } catch { }
+            try { Application.Exit(); } catch { }
+            Environment.Exit(0);
         }
 
         private void UpdateConnectionStatus(bool connected)
@@ -344,6 +345,7 @@ namespace SFCS
         #endregion
 
         #region Data Processing
+
         private void ProcessIncomingData(string data)
         {
             try
@@ -387,7 +389,7 @@ namespace SFCS
             }
             catch (Exception ex)
             {
-                WriteMessage($"Data processing error: {ex.Message}", MessageTarget.ServerMonitor, true, false, false);
+                WriteMessage($"Data processing error: {ex.Message}", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
             }
         }
 
@@ -438,6 +440,7 @@ namespace SFCS
         #endregion
 
         #region Serial Communication
+
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
             try
@@ -496,33 +499,42 @@ namespace SFCS
         private void Auto_Connect(string message)
         {
             if (!cbAutoSendWifi.Checked) return;
+            if (serialPort == null || !serialPort.IsOpen) return;
+            string trimmed = message.Trim();
 
-            WifiConfig wifiTCP = new WifiConfig
+            // Send port
+            if (string.Equals(trimmed, txtPortCmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                Port = txtTcpPort.Text,
-                Ssid = txtSSID.Text,
-                Password = txtPassword.Text,
-                PortCommand = txtPortCmd.Text,
-                SsidCommand = txtSSIDcmd.Text,
-                PasswordCommand = txtPSWcmd.Text
-            };
+                serialPort.WriteLine(txtTcpPort.Text.Trim());
+                WriteMessage("Auto-sent TCP Port", MessageTarget.SerialMonitor, cbTimecodeSerial.Checked, false, false);
+                return;
+            }
 
-            if (message.Trim().Equals(txtPortCmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+            // Send SSID
+            if (string.Equals(trimmed, txtSSIDcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                serialPort.WriteLine(txtTcpPort.Text);
+                serialPort.WriteLine(txtSSID.Text.Trim());
+                WriteMessage("Auto-sent SSID", MessageTarget.SerialMonitor, cbTimecodeSerial.Checked, false, false);
+                return;
             }
-            else if (message.Trim().Equals(txtSSIDcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+
+            // Send password
+            if (string.Equals(trimmed, txtPSWcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                serialPort.WriteLine(txtSSID.Text);
+                serialPort.WriteLine(txtPassword.Text.Trim());
+                WriteMessage("Auto-sent WiFi Password", MessageTarget.SerialMonitor, cbTimecodeSerial.Checked, false, false);
+                return;
             }
-            else if (message.Trim().Equals(txtPSWcmd.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+
+            // Set IP Address if device replies with "IP..." (e.g. "IP192.168.4.1")
+            if (trimmed.StartsWith("[SYSTEM] IP", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 2)
             {
-                serialPort.WriteLine(txtPassword.Text);
-            }
-            else if (message.Trim().StartsWith("IP", StringComparison.OrdinalIgnoreCase))
-            {
-                string ip = message.Substring(2).Trim();
-                txtIPAddress.Text = ip;
+                string ip = trimmed.Substring(12).Trim();
+                if (System.Net.IPAddress.TryParse(ip, out _))
+                {
+                    txtIPAddress.Text = ip;
+                    WriteMessage("Auto-set IP Address: " + ip, MessageTarget.SerialMonitor, cbTimecodeSerial.Checked, false, false);
+                }
             }
         }
 
@@ -774,7 +786,7 @@ namespace SFCS
             if (_tcpBuffer.Length > MAX_BUFFER_SIZE)
             {
                 _tcpBuffer.Remove(0, _tcpBuffer.Length - MAX_BUFFER_SIZE);
-                WriteMessage("TCP buffer overflow, truncated", MessageTarget.ServerMonitor, true, false, false);
+                WriteMessage("TCP buffer overflow, truncated", MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
             }
 
             ProcessBuffer(_tcpBuffer, line =>
@@ -891,7 +903,7 @@ namespace SFCS
             catch (Exception ex)
             {
                 WriteMessage($"Error finalizing log file: {ex.Message}",
-                    MessageTarget.ServerMonitor, true, false, false);
+                    MessageTarget.ServerMonitor, cbTimecodeServer.Checked, false, false);
             }
             currentLogFile = "";
         }
@@ -1208,6 +1220,10 @@ namespace SFCS
         {
             SafeClose();
         }
+        private void Quit_Click(object sender, EventArgs e)
+        {
+            SafeClose();
+        }
 
         private void UpdateUIConnectingState()
         {
@@ -1238,11 +1254,6 @@ namespace SFCS
                 btnSendTCP_Click(sender, e);
                 e.Handled = e.SuppressKeyPress = true;
             }
-        }
-
-        private void Quit_Click(object sender, EventArgs e)
-        {
-            SafeClose();
         }
 
         private void tsbFullscren_Click(object sender, EventArgs e)

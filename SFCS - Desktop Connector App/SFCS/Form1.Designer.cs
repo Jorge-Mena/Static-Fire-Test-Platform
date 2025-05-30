@@ -20,15 +20,15 @@ namespace SFCS
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea2 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend2 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series2 = new System.Windows.Forms.DataVisualization.Charting.Series();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea3 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend3 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series3 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea7 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend7 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series7 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea8 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend8 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series8 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea9 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend9 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series9 = new System.Windows.Forms.DataVisualization.Charting.Series();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.toolStripDropDownButton1 = new System.Windows.Forms.ToolStripDropDownButton();
             this.saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -49,7 +49,6 @@ namespace SFCS
             this.exportConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.importConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.preferencesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tsbFullscren = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             this.Quit = new System.Windows.Forms.ToolStripButton();
@@ -328,8 +327,7 @@ namespace SFCS
             this.toolStripDropDownButton3.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.exportConfigToolStripMenuItem,
             this.showConfigToolStripMenuItem,
-            this.importConfigToolStripMenuItem,
-            this.preferencesToolStripMenuItem});
+            this.importConfigToolStripMenuItem});
             this.toolStripDropDownButton3.Image = global::SFCS.Properties.Resources.Settings;
             this.toolStripDropDownButton3.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripDropDownButton3.Name = "toolStripDropDownButton3";
@@ -356,12 +354,6 @@ namespace SFCS
             this.importConfigToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
             this.importConfigToolStripMenuItem.Text = "Import Config";
             this.importConfigToolStripMenuItem.Click += new System.EventHandler(this.ImportConfigToolStripMenuItem_Click);
-            // 
-            // preferencesToolStripMenuItem
-            // 
-            this.preferencesToolStripMenuItem.Name = "preferencesToolStripMenuItem";
-            this.preferencesToolStripMenuItem.Size = new System.Drawing.Size(178, 26);
-            this.preferencesToolStripMenuItem.Text = "Preferences";
             // 
             // tsbFullscren
             // 
@@ -419,9 +411,10 @@ namespace SFCS
             // lblConnectionStatus
             // 
             this.lblConnectionStatus.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            this.lblConnectionStatus.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.lblConnectionStatus.Font = new System.Drawing.Font("Helvetica-Narrow", 8.999999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblConnectionStatus.ForeColor = System.Drawing.Color.Red;
             this.lblConnectionStatus.Name = "lblConnectionStatus";
-            this.lblConnectionStatus.Size = new System.Drawing.Size(95, 24);
+            this.lblConnectionStatus.Size = new System.Drawing.Size(104, 24);
             this.lblConnectionStatus.Text = "Disconnected";
             // 
             // programMessages
@@ -446,8 +439,8 @@ namespace SFCS
             this.tableLayoutPanel8.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 50F));
             this.tableLayoutPanel8.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 50F));
             this.tableLayoutPanel8.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel8.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 200F));
-            this.tableLayoutPanel8.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 200F));
+            this.tableLayoutPanel8.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 100F));
+            this.tableLayoutPanel8.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 100F));
             this.tableLayoutPanel8.Controls.Add(this.lblRecordingTime, 5, 0);
             this.tableLayoutPanel8.Controls.Add(this.btnStart, 0, 0);
             this.tableLayoutPanel8.Controls.Add(this.btnRecord, 2, 0);
@@ -466,10 +459,10 @@ namespace SFCS
             // 
             this.lblRecordingTime.AutoSize = true;
             this.lblRecordingTime.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblRecordingTime.Font = new System.Drawing.Font("Helvetica", 8.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblRecordingTime.Location = new System.Drawing.Point(845, 0);
+            this.lblRecordingTime.Font = new System.Drawing.Font("Helvetica", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblRecordingTime.Location = new System.Drawing.Point(945, 0);
             this.lblRecordingTime.Name = "lblRecordingTime";
-            this.lblRecordingTime.Size = new System.Drawing.Size(194, 47);
+            this.lblRecordingTime.Size = new System.Drawing.Size(94, 47);
             this.lblRecordingTime.TabIndex = 5;
             this.lblRecordingTime.Text = "00:00:00";
             this.lblRecordingTime.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -511,10 +504,10 @@ namespace SFCS
             // 
             this.lblRecordingStatus.AutoSize = true;
             this.lblRecordingStatus.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblRecordingStatus.Font = new System.Drawing.Font("Helvetica", 8.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblRecordingStatus.Location = new System.Drawing.Point(645, 0);
+            this.lblRecordingStatus.Font = new System.Drawing.Font("Helvetica", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblRecordingStatus.Location = new System.Drawing.Point(845, 0);
             this.lblRecordingStatus.Name = "lblRecordingStatus";
-            this.lblRecordingStatus.Size = new System.Drawing.Size(194, 47);
+            this.lblRecordingStatus.Size = new System.Drawing.Size(94, 47);
             this.lblRecordingStatus.TabIndex = 3;
             this.lblRecordingStatus.Text = "Not recording";
             this.lblRecordingStatus.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -668,17 +661,17 @@ namespace SFCS
             // 
             // chartTemp1
             // 
-            chartArea1.Name = "ChartArea1";
-            this.chartTemp1.ChartAreas.Add(chartArea1);
+            chartArea7.Name = "ChartArea1";
+            this.chartTemp1.ChartAreas.Add(chartArea7);
             this.chartTemp1.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend1.Name = "Legend1";
-            this.chartTemp1.Legends.Add(legend1);
+            legend7.Name = "Legend1";
+            this.chartTemp1.Legends.Add(legend7);
             this.chartTemp1.Location = new System.Drawing.Point(0, 20);
             this.chartTemp1.Name = "chartTemp1";
-            series1.ChartArea = "ChartArea1";
-            series1.Legend = "Legend1";
-            series1.Name = "Series1";
-            this.chartTemp1.Series.Add(series1);
+            series7.ChartArea = "ChartArea1";
+            series7.Legend = "Legend1";
+            series7.Name = "Series1";
+            this.chartTemp1.Series.Add(series7);
             this.chartTemp1.Size = new System.Drawing.Size(264, 330);
             this.chartTemp1.TabIndex = 0;
             this.chartTemp1.Text = "chart1";
@@ -699,17 +692,17 @@ namespace SFCS
             // 
             // chartMass
             // 
-            chartArea2.Name = "ChartArea1";
-            this.chartMass.ChartAreas.Add(chartArea2);
+            chartArea8.Name = "ChartArea1";
+            this.chartMass.ChartAreas.Add(chartArea8);
             this.chartMass.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend2.Name = "Legend1";
-            this.chartMass.Legends.Add(legend2);
+            legend8.Name = "Legend1";
+            this.chartMass.Legends.Add(legend8);
             this.chartMass.Location = new System.Drawing.Point(0, 20);
             this.chartMass.Name = "chartMass";
-            series2.ChartArea = "ChartArea1";
-            series2.Legend = "Legend1";
-            series2.Name = "Series1";
-            this.chartMass.Series.Add(series2);
+            series8.ChartArea = "ChartArea1";
+            series8.Legend = "Legend1";
+            series8.Name = "Series1";
+            this.chartMass.Series.Add(series8);
             this.chartMass.Size = new System.Drawing.Size(264, 330);
             this.chartMass.TabIndex = 1;
             this.chartMass.Text = "chart1";
@@ -730,18 +723,18 @@ namespace SFCS
             // 
             // chartTemp2
             // 
-            chartArea3.Name = "ChartArea1";
-            this.chartTemp2.ChartAreas.Add(chartArea3);
+            chartArea9.Name = "ChartArea1";
+            this.chartTemp2.ChartAreas.Add(chartArea9);
             this.chartTemp2.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend3.Name = "Legend1";
-            this.chartTemp2.Legends.Add(legend3);
+            legend9.Name = "Legend1";
+            this.chartTemp2.Legends.Add(legend9);
             this.chartTemp2.Location = new System.Drawing.Point(0, 20);
             this.chartTemp2.Margin = new System.Windows.Forms.Padding(0);
             this.chartTemp2.Name = "chartTemp2";
-            series3.ChartArea = "ChartArea1";
-            series3.Legend = "Legend1";
-            series3.Name = "Series1";
-            this.chartTemp2.Series.Add(series3);
+            series9.ChartArea = "ChartArea1";
+            series9.Legend = "Legend1";
+            series9.Name = "Series1";
+            this.chartTemp2.Series.Add(series9);
             this.chartTemp2.Size = new System.Drawing.Size(264, 330);
             this.chartTemp2.TabIndex = 1;
             this.chartTemp2.Text = "chart1";
@@ -1673,7 +1666,6 @@ namespace SFCS
         private System.Windows.Forms.ToolStripMenuItem exportConfigToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem showConfigToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem importConfigToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem preferencesToolStripMenuItem;
         private System.Windows.Forms.ToolStripButton tsbFullscren;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
         private System.Windows.Forms.ToolStripButton Quit;
