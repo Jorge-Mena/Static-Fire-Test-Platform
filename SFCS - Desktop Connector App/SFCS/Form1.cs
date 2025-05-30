@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.IO;
@@ -268,34 +269,96 @@ namespace SFCS
 
         private void SafeClose()
         {
+            // Always marshal to UI thread
             if (InvokeRequired)
             {
                 Invoke(new Action(SafeClose));
                 return;
             }
 
-            if (isRecording)
+            // Prevent multiple execution
+            if (!this.Enabled) return;
+            this.Enabled = false;
+
+            bool shouldClose = true;
+
+            try
             {
-                var result = MessageBox.Show(
-                    "Recording is in progress. Stop recording and exit?",
-                    "Stop Recording?",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
+                // Prompt to stop recording if needed
+                if (isRecording)
+                {
+                    var result = MessageBox.Show(
+                        "Recording is in progress. Stop recording and exit?",
+                        "Stop Recording?",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
 
-                if (result == DialogResult.No)
-                    return;
+                    if (result == DialogResult.No)
+                    {
+                        shouldClose = false;
+                        return; // Exit before finally block
+                    }
 
-                try { StopRecording(); } catch { }
+                    try { StopRecording(); } catch { }
+                }
+
+                // Disconnect TCP
+                try
+                {
+                    if (isConnected)
+                        Disconnect();
+                }
+                catch { }
+
+                // Close serial
+                try
+                {
+                    if (isSerialConnected && serialPort != null && serialPort.IsOpen)
+                        serialPort.Close();
+                }
+                catch { }
+
+                // Save config
+                try { SaveConfig(); } catch { }
             }
+            finally
+            {
+                if (shouldClose)
+                {
+                    // Remove form closing handlers that might cancel closing
+                    try
+                    {
+                        // Use reflection to remove FormClosing event handlers
+                        var eventField = typeof(Form).GetField("Events", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        if (eventField != null)
+                        {
+                            var eventHandlerList = eventField.GetValue(this) as EventHandlerList;
+                            var formClosingKey = typeof(Form).GetField("EventFormClosing", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null);
 
-            try { if (isConnected) Disconnect(); } catch { }
-            try { if (isSerialConnected && serialPort != null && serialPort.IsOpen) serialPort.Close(); } catch { }
-            try { SaveConfig(); } catch { }
+                            if (eventHandlerList != null && formClosingKey != null)
+                            {
+                                eventHandlerList.RemoveHandler(formClosingKey, eventHandlerList[formClosingKey]);
+                            }
+                        }
+                    }
+                    catch { /* Safe: if reflection fails, just proceed */ }
 
-            // Failsafe: force kill process if form doesn't close
-            try { this.Close(); } catch { }
-            try { Application.Exit(); } catch { }
-            Environment.Exit(0);
+                    // Try to close the form and force exit if needed
+                    try { this.Close(); } catch { }
+                    try { Application.ExitThread(); } catch { }
+                    try { Application.Exit(); } catch { }
+                    // Failsafe: kill process if still not closed after 1 second
+                    Task.Run(() =>
+                    {
+                        System.Threading.Thread.Sleep(1000);
+                        try { Environment.Exit(0); } catch { }
+                    });
+                }
+                else
+                {
+                    this.Enabled = true; // Re-enable the form if not closing
+                }
+            }
         }
 
         private void UpdateConnectionStatus(bool connected)
